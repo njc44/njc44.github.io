@@ -104,6 +104,28 @@ p { margin: 0 0 1rem; }
 .role li::marker { color: var(--muted); }
 .num { font-family: var(--mono); font-size: .88em; font-variant-numeric: tabular-nums; background: var(--accent-soft); padding: .05em .3em; border-radius: 3px; white-space: nowrap; }
 
+/* work: roles + case studies */
+.roles { list-style: none; margin: 0 0 1.5rem; padding: 0; display: grid; gap: .3rem; }
+.roles li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .1rem 1rem; align-items: baseline; }
+.roles b { font: 600 1rem/1.4 var(--display); }
+.cases { display: grid; gap: .75rem; }
+.case { border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); }
+.case[open] { border-color: color-mix(in srgb, var(--accent) 35%, var(--rule)); }
+.case summary { list-style: none; cursor: pointer; padding: 1rem 2.6rem 1rem 1.1rem; display: grid; gap: .3rem; position: relative; }
+.case summary::-webkit-details-marker { display: none; }
+.case summary::after { content: "+"; position: absolute; right: 1.1rem; top: .9rem; font: 400 1.3rem/1 var(--mono); color: var(--accent); }
+.case[open] summary::after { content: "−"; }
+.case summary:hover h3 { color: var(--accent); }
+.case summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+.hook { font-size: .98rem; color: var(--muted); }
+.case-body { padding: 0 1.1rem 1.1rem; border-top: 1px solid var(--rule); min-width: 0; }
+.case-body h4 { font: 500 .7rem/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 1.2rem 0 .5rem; }
+.case-body > p:first-child, .case-body > h4:first-child { margin-top: 1rem; }
+.case-body ul { margin: 0 0 .75rem; padding-left: 1.1rem; display: grid; gap: .5rem; }
+.case-body li::marker { color: var(--muted); }
+.case-body p { margin: 0 0 .75rem; }
+.case-body code { font: .85em var(--mono); background: var(--accent-soft); padding: .05em .3em; border-radius: 3px; }
+
 /* entries (projects, kaggle, writing) */
 .entries { display: grid; gap: 1.6rem; }
 .entry { display: grid; gap: .3rem; }
@@ -199,31 +221,157 @@ footer { margin-top: 4rem; padding-top: 1.25rem; border-top: 1px solid var(--rul
   <section id="work">
     <p class="label">Work</p>
     <h2>Meesho</h2>
-    <p class="muted">India's largest marketplace for small sellers. I joined as an intern in 2022.</p>
+    <p class="muted">India's largest marketplace for small sellers. I joined as an intern in January 2022.</p>
 
-    <div class="role">
-      <div class="role-head"><h3>Data Scientist II</h3><span class="when">Jan 2024 – present</span></div>
-      <ul>
-        <li>ETA prediction with quantile regression and causal features. MAE improved by <span class="num">0.8 days</span>, delivery breaches fell <span class="num">3%</span>, and NMV rose <span class="num">0.7%</span>. Serves <span class="num">4K RPS</span> at under <span class="num">6 ms p99</span> on a single CPU instance.</li>
-        <li>RAG customer-support LLMs at <span class="num">25%</span> of the cost of the incumbent, with latency cut from <span class="num">1500 → 40 ms</span> using Triton and quantised PyTorch models.</li>
-        <li>Multilingual voice AI (ASR, NLU, TTS) in <span class="num">8+</span> Indic languages, handling <span class="num">200K+</span> conversations a day at <span class="num">99.9%</span> reliability.</li>
-      </ul>
+    <ul class="roles">
+      <li><b>Data Scientist II</b><span class="when">Jan 2024 – present</span></li>
+      <li><b>Data Scientist I</b><span class="when">Jul 2022 – Jan 2024</span></li>
+      <li><b>Data Science Intern</b><span class="when">Jan 2022 – Jul 2022</span></li>
+    </ul>
+
+    <p>Below are the systems I've built, shown newest first. Each one opens into a short case study.</p>
+
+    <div class="cases">
+
+      <details class="case" id="eta">
+        <summary>
+          <span class="tag">Forecasting · 2025–26</span>
+          <h3>Delivery-date promises on the cart</h3>
+          <span class="hook">A quantile model behind the delivery date shown when you enter your pincode. Delivery breaches fell from <span class="num">8%</span> to under <span class="num">5%</span>, and it serves <span class="num">4K RPS</span> in under <span class="num">15 ms</span>.</span>
+        </summary>
+        <div class="case-body">
+          <h4>Problem</h4>
+          <p>A delivery date that's too optimistic leads to breaches, cancellations and returns. One that's too cautious loses the sale. The date has to be calculated live for every cart, within the cart's latency budget.</p>
+          <h4>What I built</h4>
+          <ul>
+            <li>An end-to-end pipeline that builds the training target and features from carrier milestone timestamps and in-house order data.</li>
+            <li>Rolling statistics of each delivery leg (seller handover, line-haul, last mile) for sellers, lanes and carriers, plus calendar and sale-day signals. To keep this cheap on entities with hundreds of millions of rows, rows are first collapsed to one per entity per day. Rolling percentiles and higher moments are then computed from daily aggregates.</li>
+            <li>A LightGBM model trained with pinball (quantile) loss. It predicts a high quantile of delivery time instead of the mean, so the promise covers most deliveries.</li>
+            <li>A Triton ensemble for serving: a Python preprocessing step, then the tree model on the FIL backend, with dynamic batching. All heavy features are computed in batch beforehand, so only lightweight work happens per request.</li>
+          </ul>
+          <h4>Decisions that mattered</h4>
+          <ul>
+            <li>I first predicted the mean and then the residual in a second stage. The second stage collapsed to a constant offset, so a single pinball model replaced both and was simpler.</li>
+            <li>Rounding matters for a quantile model. Rounding up (<code>ceil</code>) means the rounding step can never cause a breach.</li>
+            <li>Features only use data that has fully landed. Mixing in partly delivered days silently biases the model.</li>
+          </ul>
+          <h4>Impact</h4>
+          <p>Breaches fell from <span class="num">8%</span> to under <span class="num">5%</span>, positive MAE improved by <span class="num">0.8 days</span>, NMV rose <span class="num">0.7%</span>, cancellations fell <span class="num">0.2%</span> and RTO fell <span class="num">0.1%</span>. Next I'm working on per-leg models and a calibration layer.</p>
+        </div>
+      </details>
+
+      <details class="case" id="intent">
+        <summary>
+          <span class="tag">NLP · small models · 2024</span>
+          <h3>Intent detection for support chat and voice</h3>
+          <span class="hook">I led the intent classifier work. It moved from prompting GPT-class models to a fine-tuned FLAN-T5 that is much cheaper and faster.</span>
+        </summary>
+        <div class="case-body">
+          <h4>Problem</h4>
+          <p>Every support conversation starts by working out what the customer wants. That decides which resolution procedure the bot follows. Routing errors cascade, and calling a large LLM for every turn is slow and expensive.</p>
+          <h4>What I built</h4>
+          <ul>
+            <li><b>Narrowing by order state.</b> Before any model runs, the order's status and situation (shipped, delivered, late, return in progress) cut down the set of possible intents. A small, relevant label set is much easier to classify.</li>
+            <li><b>v2 retrieval-then-rank pipeline.</b> An LLM pulls the customer's intents out of the whole conversation. Those are embedded and matched against an intent index in a vector database to get a shortlist, and a final ranking step picks one.</li>
+            <li><b>A fine-tuned small model.</b> A FLAN-T5-base classifier replaced the prompted LLM. It's served over gRPC, scores only the intents valid for the current order state, and falls back safely if the call fails.</li>
+            <li>Gradual percentage rollouts, latency logging and per-intent monitoring, so every change could be measured before it reached all traffic.</li>
+          </ul>
+          <h4>What I learned</h4>
+          <p>Once the label space is constrained by order state, a small fine-tuned model can do the job of a prompted large one, at a fraction of the cost and latency.</p>
+        </div>
+      </details>
+
+      <details class="case" id="rag">
+        <summary>
+          <span class="tag">LLMs · RAG · 2023–24</span>
+          <h3>Support chatbot with conversational RAG</h3>
+          <span class="hook">Retrieval over real support conversations got smaller models to GPT-4-level answers at under <span class="num">25%</span> of the cost. It beat human agents on Customer Effort Score.</span>
+        </summary>
+        <div class="case-body">
+          <h4>Problem</h4>
+          <p>A support bot has to follow the company's procedures exactly while still sounding like a person. GPT-4 did this well but cost too much at Meesho's volume. The goal was to get the same quality from smaller, cheaper models.</p>
+          <h4>What I built</h4>
+          <ul>
+            <li><b>A retrieval corpus from past conversations.</b> I mined bot and human-agent chats with Spark and replaced order-specific details (dates, products, couriers) with placeholders. The user turns were embedded and indexed in a vector database.</li>
+            <li><b>Retrieval at the right level.</b> I tested indexing by order status, by intent, and by intent and scenario together, with a separate index for opening turns. The closest past exchanges go into the prompt as examples of tone and resolution, with instructions not to copy their specifics.</li>
+            <li><b>Grounded generation.</b> The model answers only from the order's data and the matching procedure. A function call hands off to a human for anything outside its scope, and content-filter or error states route to an agent automatically.</li>
+            <li><b>Multi-provider routing.</b> Traffic is weighted across several model providers and cloud regions, with circuit breakers and fallback chains. A smaller RAG model falls back to a larger one when needed.</li>
+          </ul>
+          <h4>Impact</h4>
+          <p>Answers matched GPT-4 quality at under <span class="num">25%</span> of the cost, with no fine-tuning, and the bot beat human agents on Customer Effort Score. Serving optimisations with quantised models on Triton cut latency from <span class="num">1500</span> to <span class="num">40 ms</span>. I also helped design the multilingual version, working through hallucination and coherence problems in non-English output.</p>
+        </div>
+      </details>
+
+      <details class="case" id="voice">
+        <summary>
+          <span class="tag">Voice AI · 2023–24</span>
+          <h3>Indic-language voicebot</h3>
+          <span class="hook">The conversation and understanding layer of a support voicebot that handles <span class="num">200K+</span> calls a day in <span class="num">8</span> Indian languages.</span>
+        </summary>
+        <div class="case-body">
+          <p>Speech recognition and speech synthesis sit at either end of the call. I worked on the layer in between: it takes the transcribed turn and the order's state, detects intent, chooses the right procedure, and streams a reply back to be spoken.</p>
+          <ul>
+            <li>Built the intent detection described above for voice, where transcription errors and code-mixed Hinglish make classification harder.</li>
+            <li>Built multi-region routing for the intent and procedure services, plus provider failover, so a single regional outage doesn't take calls down.</li>
+            <li>Supported English, Hindi, Bengali, Tamil, Telugu, Malayalam, Kannada and Marathi, including transliteration for Indic scripts.</li>
+          </ul>
+          <p>It runs at <span class="num">99.9%</span> reliability with p99 latency under <span class="num">800 ms</span>. Separately, a multilingual e-commerce voice bot I built in 36 hours won Meesho's HackMEE 2.0 hackathon.</p>
+        </div>
+      </details>
+
+      <details class="case" id="compliance">
+        <summary>
+          <span class="tag">Computer vision · trust &amp; safety · 2022–25</span>
+          <h3>The catalog compliance pipeline</h3>
+          <span class="hook">I built the system that finds counterfeit and restricted listings. It removed <span class="num">42 lakh</span> counterfeits and cut non-compliant views by <span class="num">80%</span>, to under <span class="num">0.1%</span> of the platform.</span>
+        </summary>
+        <div class="case-body">
+          <h4>Problem</h4>
+          <p>Millions of new listings arrive from small sellers. Some carry fake brand logos or sell items that aren't allowed. Manual review couldn't keep up, and every counterfeit that slips through costs buyers' trust.</p>
+          <h4>What I built</h4>
+          <ul>
+            <li><b>A staged pipeline that runs cheap checks first.</b> Text matching with fuzzy and spelling-variant handling catches the easy cases. The rest goes through OCR, a YOLOv7 logo detector, and image embeddings compared against a logo index with GPU FAISS nearest-neighbour search. A vision-language model reviews a small set of hard cases.</li>
+            <li><b>Running it efficiently.</b> Models load once per Spark worker and score whole partitions at a time, and OCR runs on GPUs. Only new or changed listings in relevant categories are scored, which cut OCR runtime substantially.</li>
+            <li><b>Changing platforms.</b> I moved the pipeline from EMR and Airflow to Databricks with Delta upserts and compaction, and from S3 to GCS. Each stage was packaged as a versioned job with Grafana and Cronitor monitoring.</li>
+            <li>Related quality checks: image-based filters, blur detection, price-on-image detection and a profanity filter. These used custom PyTorch and TensorFlow models, PaddleOCR and multimodal models.</li>
+          </ul>
+          <h4>Impact</h4>
+          <p>The pipeline removed <span class="num">42 lakh</span> counterfeit listings and deactivated <span class="num">10 lakh</span> restricted products. Non-compliant listing views fell <span class="num">80%</span>, to under <span class="num">0.1%</span> of platform views. Recall reached <span class="num">99.5%</span>, quality-check costs fell <span class="num">70%</span>, and a redesigned ETL saves about <span class="num">$40K/month</span> in servers. This work was part of Meesho's publicly announced <a href="https://www.meesho.io/blog/meeshos-project-suraksha-leverages-ai-to-redefine-safe-e-commerce-in-india">Project Suraksha</a>.</p>
+        </div>
+      </details>
+
+      <details class="case" id="serving">
+        <summary>
+          <span class="tag">MLOps · Kubernetes · 2023</span>
+          <h3>Real-time model serving on Kubernetes</h3>
+          <span class="hook">I took batch-only catalog attribute-tagging models and turned them into autoscaling real-time services on EKS, with CI/CD.</span>
+        </summary>
+        <div class="case-body">
+          <p>Product-attribute models (multi-head image classifiers that fill in details sellers leave blank) only ran as batch jobs. I built the real-time serving layer for them:</p>
+          <ul>
+            <li>FastAPI services with health checks that return the top value and a confidence for each attribute.</li>
+            <li>Model weights stored on a mounted volume rather than inside the image, and reloaded only when the config changes. Models are grouped by category so one container serves a whole family.</li>
+            <li>Kubernetes deployments with autoscaling, rolling updates, and separate dev, staging and prod environments. They're shipped through a Jenkins pipeline and GitOps deploys.</li>
+          </ul>
+          <p>I also set up the surrounding training workflow on Databricks and MLflow so teams could reuse it instead of duplicating code.</p>
+        </div>
+      </details>
+
+      <details class="case" id="qc">
+        <summary>
+          <span class="tag">Computer vision · 2022</span>
+          <h3>Automated quality checks</h3>
+          <span class="hook">My internship project. A CNN and OCR system that automated catalog quality checks, halving manual work and cutting its cost by <span class="num">80%</span>.</span>
+        </summary>
+        <div class="case-body">
+          <p>I built the image datasets, preprocessing pipelines and classification models that replaced manual review for common catalog quality issues. This also shortened the time it takes a new supplier to get products live.</p>
+        </div>
+      </details>
     </div>
-    <div class="role">
-      <div class="role-head"><h3>Data Scientist I</h3><span class="when">Jul 2022 – Jan 2024</span></div>
-      <ul>
-        <li>Computer vision and NLP pipelines for counterfeit and quality detection. Recall reached <span class="num">99.5%</span> and the system costs <span class="num">$40K/month</span> less to run.</li>
-        <li>Helped remove <span class="num">42 lakh</span> counterfeit listings and deactivate <span class="num">10 lakh</span> restricted products. Non-compliant listing views fell <span class="num">80%</span>, to under <span class="num">0.1%</span> of the platform.</li>
-      </ul>
-    </div>
-    <div class="role">
-      <div class="role-head"><h3>Data Science Intern</h3><span class="when">Jan 2022 – Jul 2022</span></div>
-      <ul>
-        <li>CNN and OCR quality-check automation that halved manual review work and cut its cost by <span class="num">80%</span>.</li>
-      </ul>
-    </div>
-    <p class="muted" style="margin-top:1rem">Four-time Top Performer at Meesho. Won HackMEE 2.0 with a multilingual e-commerce voice bot built in 36 hours.</p>
+
+    <p class="muted" style="margin-top:1.25rem">Four-time Top Performer at Meesho.</p>
   </section>
+
 
   <section id="projects">
     <p class="label">Projects</p>
