@@ -52,11 +52,27 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-
   border-bottom: 1px solid var(--rule);
   margin-inline: -1.25rem; padding: .7rem 1.25rem;
 }
-.bar-in { max-width: var(--col); margin-inline: auto; display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; align-items: baseline; justify-content: space-between; }
+.bar-in { max-width: var(--col); margin-inline: auto; display: flex; gap: 1rem; align-items: center; justify-content: space-between; position: relative; }
 .bar strong { font: 700 1rem/1 var(--display); letter-spacing: -.01em; }
-.bar nav { display: flex; flex-wrap: wrap; gap: .25rem 1rem; font: 400 .8rem/1.4 var(--mono); }
-.bar nav a { color: var(--muted); text-decoration: none; }
-.bar nav a:hover { color: var(--accent); }
+.menu-btn {
+  appearance: none; background: none; border: 1px solid var(--rule); border-radius: 6px;
+  width: 2.5rem; height: 2.25rem; display: grid; place-content: center; gap: 4px; cursor: pointer; color: var(--ink);
+}
+.menu-btn:hover { border-color: var(--accent); color: var(--accent); }
+.menu-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.menu-btn span { display: block; width: 18px; height: 2px; background: currentColor; border-radius: 1px; transition: transform .2s ease, opacity .2s ease; }
+.menu-btn[aria-expanded="true"] span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+.menu-btn[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+.menu-btn[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+.menu {
+  position: absolute; right: 0; top: calc(100% + .7rem);
+  background: var(--paper); border: 1px solid var(--rule); border-radius: 8px;
+  box-shadow: 0 12px 32px -12px color-mix(in srgb, var(--ink) 30%, transparent);
+  padding: .4rem; min-width: 12rem; display: grid;
+}
+.menu a { color: var(--ink); text-decoration: none; font: 400 .9rem/1 var(--mono); padding: .7rem .8rem; border-radius: 5px; }
+.menu a:hover, .menu a:focus-visible { background: var(--accent-soft); color: var(--accent); outline: none; }
+@media (prefers-reduced-motion: reduce) { .menu-btn span { transition: none; } }
 
 /* hero */
 .hero { padding-block: 3.5rem 1rem; display: grid; gap: 1.1rem; }
@@ -177,13 +193,17 @@ footer { margin-top: 4rem; padding-top: 1.25rem; border-top: 1px solid var(--rul
 <header class="bar">
   <div class="bar-in">
     <strong>Nathan Jacob</strong>
-    <nav aria-label="Sections">
-      <a href="#now">now</a>
-      <a href="#work">work</a>
-      <a href="#projects">projects</a>
-      <a href="#kaggle">kaggle</a>
-      <a href="#writing">writing</a>
-      <a href="#vision">vision</a>
+    <button class="menu-btn" id="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="menu">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="menu" id="menu" aria-label="Sections" hidden>
+      <a href="#now">Now</a>
+      <a href="#work">Work</a>
+      <a href="#projects">Projects</a>
+      <a href="#kaggle">Kaggle</a>
+      <a href="#writing">Writing &amp; talks</a>
+      <a href="#vision">Vision</a>
+      <a href="resume.pdf">Resume</a>
     </nav>
   </div>
 </header>
@@ -319,6 +339,25 @@ footer { margin-top: 4rem; padding-top: 1.25rem; border-top: 1px solid var(--rul
         </div>
       </details>
 
+      <details class="case" id="vton">
+        <summary>
+          <span class="tag">Generative vision · 2023</span>
+          <h3>Virtual try-on for sarees</h3>
+          <span class="hook">I started this project and built the demo that turned leadership's curiosity into conviction. It led to a Google Cloud partnership, a <span class="num">$500K</span> investment and a production launch.</span>
+        </summary>
+        <div class="case-body">
+          <h4>Problem</h4>
+          <p>Small saree sellers can't afford model photoshoots, so their listings compete against professional catalog images with flat product shots. In 2023 leadership liked the idea of virtual try-on but wasn't convinced the technology was ready. The saree is also the hardest garment for it: five to six metres of unstitched fabric, draped and pleated differently on every body.</p>
+          <h4>What I did</h4>
+          <ul>
+            <li>Read the try-on literature and open-source implementations, and compared the approaches on the cases that matter for a saree: draping, pleats, the pallu and fabric patterns.</li>
+            <li>Built a working demo using real garments from the catalog, so leadership saw their own sellers' products draped on a model instead of a research paper.</li>
+          </ul>
+          <h4>Impact</h4>
+          <p>The demo turned curiosity into confidence and got the project funded with a <span class="num">$500K</span> investment. Once it was moving, a junior colleague took it forward. Meesho partnered with Google Cloud to build a production pipeline that drapes a seller's blouse, body and pallu images onto a model in 2D and 3D, then enhances the result with Imagen. Google wrote about the system on <a href="https://cloud.google.com/blog/products/ai-machine-learning/virtual-try-on-technology-with-google-cloud-ai">its Cloud blog</a>.</p>
+        </div>
+      </details>
+
       <details class="case" id="compliance">
         <summary>
           <span class="tag">Computer vision · trust &amp; safety · 2022–25</span>
@@ -440,9 +479,10 @@ footer { margin-top: 4rem; padding-top: 1.25rem; border-top: 1px solid var(--rul
     <p class="label">Writing &amp; talks</p>
     <div class="entries">
       <div class="entry">
-        <span class="tag">Talk · NIAT masterclass</span>
-        <h3>Quantisation Fundamentals: Compressing LLMs for Speed and Cost</h3>
+        <span class="tag">Talk · NIAT masterclass on quantisation</span>
+        <h3>Compress LLMs Without Killing Accuracy</h3>
         <p>How lower-precision weights trade a little accuracy for large gains in latency and cost, and how to tell when that trade is worth it. It's the same technique that took our support LLM from 1500 ms to 40 ms.</p>
+        <div class="meta"><a href="https://www.youtube.com/watch?v=eEh71crEP0M">watch on YouTube</a><span>NIAT Tech Decode</span></div>
       </div>
       <div class="entry">
         <span class="tag">Article</span>
@@ -525,5 +565,16 @@ footer { margin-top: 4rem; padding-top: 1.25rem; border-top: 1px solid var(--rul
     <span>Last updated October 2026</span>
   </footer>
 </main>
+
+<script>
+(function () {
+  var btn = document.getElementById("menu-btn"), menu = document.getElementById("menu");
+  function set(open) { menu.hidden = !open; btn.setAttribute("aria-expanded", String(open)); }
+  btn.addEventListener("click", function (e) { e.stopPropagation(); set(menu.hidden); if (!menu.hidden) menu.querySelector("a").focus(); });
+  menu.addEventListener("click", function (e) { if (e.target.closest("a")) set(false); });
+  document.addEventListener("click", function (e) { if (!menu.hidden && !menu.contains(e.target)) set(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !menu.hidden) { set(false); btn.focus(); } });
+})();
+</script>
 </body>
 </html>
